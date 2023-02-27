@@ -25,7 +25,7 @@ def create_tables(cursor):
     # Must set Title to CHARSET utf8 unicode Source: http://mysql.rjweb.org/doc.php/charcoll.
     # Python is in latin-1 and error (Incorrect string value: '\xE2\x80\xAFAbi...') will occur if Description is not in unicode format due to the json data
     cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (id INT PRIMARY KEY auto_increment, Job_id varchar(100) , 
-    company varchar (500), Created_at DATE, url TEXT, Title LONGBLOB, Description LONGBLOB ); ''')
+    company varchar (500), Created_at DATE, url TEXT, Title LONGBLOB, Description LONGBLOB); ''')
 
 
 # Query the database.
@@ -40,14 +40,12 @@ def add_new_job(cursor, jobdetails):
     # extract all required columns
     job_id = jobdetails['id']
     company = jobdetails['company_name']
-    url = jobdetails['url']
+    URL = jobdetails['url']
     title = jobdetails['title']
-    location = jobdetails['location']
-    salary = jobdetails['salary']
     description = html2text.html2text(jobdetails['description'])
     date = jobdetails['publication_date'][0:10]
-    query = cursor.execute("INSERT INTO jobs( Job_id, company, url, Title, location, Salary, Description, Created_at " ") "
-               "VALUES(%s,%s,%s,%s,%s,%s,%s,%s)", (job_id, company, url, title, location, salary, description, date, description, date))
+    query = cursor.execute("INSERT INTO jobs( Job_id, company, url, Title, Description, Created_at " ") "
+               "VALUES(%s,%s,%s,%s,%s,%s)", (job_id, company, URL, title, description, date))
      # %s is what is needed for Mysqlconnector as SQLite3 uses ? the Mysqlconnector uses %s
     return query_sql(cursor, query)
 
@@ -80,9 +78,8 @@ def jobhunt(cursor):
     jobpage = fetch_new_jobs()  # Gets API website and holds the json data in it as a list
     # use below print statement to view list in json format
     # print(jobpage)
+    add_or_delete_job(jobpage, cursor)
 
-
-# add_or_delete_job(jobpage, cursor)
 def add_or_delete_job(jobpage, cursor):
     # Add your code here to parse the job page
     print("Parsing %s jobs..." % len(jobpage['jobs']))
@@ -99,7 +96,7 @@ def add_or_delete_job(jobpage, cursor):
                 delete_job(cursor, jobdetails)
         else:
             add_new_job(cursor, jobdetails)
-            print(f"We've found new job match for you!: " + jobdetails["title"] + " from " + jobdetails["company_name"] + ", Posted on: " + jobdetails["publication_date"] + ", JobID: " + str(jobdetails['id']))
+            print(f"We've found new jobs match for you!: " + jobdetails["title"] + " from " + jobdetails["company_name"] + ", Posted on: " + jobdetails["publication_date"] + ", JobID: " + str(jobdetails['id']))
 
 
 # Setup portion of the program. Take arguments and set up the script
@@ -113,10 +110,11 @@ def main():
 
     while (1):  # Infinite Loops. Only way to kill it is to crash or manually crash it. We did this as a background process/passive scraper
         jobhunt(cursor)
-        time.sleep(21600)  # Sleep for 1h, this is ran every hour because API or web interfaces have request limits. Your reqest will get blocked.
+        time.sleep(3600)  # Sleep for 1h, this is ran every hour because API or web interfaces have request limits. Your reqest will get blocked.
 
 
 # Sleep does a rough cycle count, system is not entirely accurate
 # If you want to test if script works change time.sleep() to 10 seconds and delete your table in MySQL
 if __name__ == '__main__':
     main()
+
