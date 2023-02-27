@@ -1,3 +1,8 @@
+#Celine Watcharaapakorn-Smith
+# CNE 340 02.18.23
+# utilizing an API jobhunter assignment
+
+
 import mysql.connector
 import time
 import json
@@ -10,7 +15,7 @@ import html2text
 # You may need to edit the connect function based on your local settings.#I made a password for my database because it is important to do so. Also make sure MySQL server is running or it will not connect
 def connect_to_sql():
     conn = mysql.connector.connect(user='root', password='',
-                                   host='127.0.0.1', database='cne340')
+                                   host='127.0.0.1', database='jobhunter_assignment')
     return conn
 
 
@@ -19,8 +24,8 @@ def create_tables(cursor):
     # Creates table
     # Must set Title to CHARSET utf8 unicode Source: http://mysql.rjweb.org/doc.php/charcoll.
     # Python is in latin-1 and error (Incorrect string value: '\xE2\x80\xAFAbi...') will occur if Description is not in unicode format due to the json data
-    cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (id INT PRIMARY KEY auto_increment, Job_id varchar(50) , 
-    company varchar (300), Created_at DATE, url varchar(30000), Title LONGBLOB, Description LONGBLOB ); ''')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (id INT PRIMARY KEY auto_increment, Job_id varchar(100) , 
+    company varchar (500), Created_at DATE, url TEXT, Title LONGBLOB, Description LONGBLOB ); ''')
 
 
 # Query the database.
@@ -33,10 +38,16 @@ def query_sql(cursor, query):
 # Add a new job
 def add_new_job(cursor, jobdetails):
     # extract all required columns
+    job_id = jobdetails['id']
+    company = jobdetails['company_name']
+    url = jobdetails['url']
+    title = jobdetails['title']
+    location = jobdetails['location']
+    salary = jobdetails['salary']
     description = html2text.html2text(jobdetails['description'])
     date = jobdetails['publication_date'][0:10]
-    query = cursor.execute("INSERT INTO jobs( Description, Created_at " ") "
-               "VALUES(%s,%s)", (  description, date))
+    query = cursor.execute("INSERT INTO jobs( Job_id, company, url, Title, location, Salary, Description, Created_at " ") "
+               "VALUES(%s,%s,%s,%s,%s,%s,%s,%s)", (job_id, company, url, title, location, salary, description, date, description, date))
      # %s is what is needed for Mysqlconnector as SQLite3 uses ? the Mysqlconnector uses %s
     return query_sql(cursor, query)
 
@@ -44,13 +55,13 @@ def add_new_job(cursor, jobdetails):
 # Check if new job
 def check_if_job_exists(cursor, jobdetails):
     ##Add your code here
-    query = "UPDATE"
+    query = "SELECT * FROM jobs WHERE Job_id = \"%s\"" % jobdetails['id']
     return query_sql(cursor, query)
 
 # Deletes job
 def delete_job(cursor, jobdetails):
     ##Add your code here
-    query = "UPDATE"
+    query = "DELETE FROM jobs WHERE Job_id = \"%s\"" % jobdetails['id']
     return query_sql(cursor, query)
 
 
@@ -65,25 +76,30 @@ def fetch_new_jobs():
 # Main area of the code. Should not need to edit
 def jobhunt(cursor):
     # Fetch jobs from website
+    print("Stand by, Fetching new jobs!")
     jobpage = fetch_new_jobs()  # Gets API website and holds the json data in it as a list
     # use below print statement to view list in json format
     # print(jobpage)
-    add_or_delete_job(jobpage, cursor)
 
 
+# add_or_delete_job(jobpage, cursor)
 def add_or_delete_job(jobpage, cursor):
     # Add your code here to parse the job page
+    print("Parsing %s jobs..." % len(jobpage['jobs']))
     for jobdetails in jobpage['jobs']:  # EXTRACTS EACH JOB FROM THE JOB LIST. It errored out until I specified jobs. This is because it needs to look at the jobs dictionary from the API. https://careerkarma.com/blog/python-typeerror-int-object-is-not-iterable/
         # Add in your code here to check if the job already exists in the DB
+        print("Working on job: %s" % jobdetails['id'])
         check_if_job_exists(cursor, jobdetails)
-        is_job_found = len(
-        cursor.fetchall()) > 0  # https://stackoverflow.com/questions/2511679/python-number-of-rows-affected-by-cursor-executeselect
+        is_job_found = len(cursor.fetchall()) > 0  # https://stackoverflow.com/questions/2511679/python-number-of-rows-affected-by-cursor-executeselect
         if is_job_found:
-
+            now = datetime.now()
+            job_date = datetime.strptime(jobdetails['publication_date'], "%Y-%m-%dT%H:%M:%S")
+            if (now - job_date).days > 14:
+                print("Oops, you are too late! The job went Bye Bye")
+                delete_job(cursor, jobdetails)
         else:
-            # INSERT JOB
-            # Add in your code here to notify the user of a new posting. This code will notify the new user
-
+            add_new_job(cursor, jobdetails)
+            print(f"We've found new job match for you!: " + jobdetails["title"] + " from " + jobdetails["company_name"] + ", Posted on: " + jobdetails["publication_date"] + ", JobID: " + str(jobdetails['id']))
 
 
 # Setup portion of the program. Take arguments and set up the script
